@@ -1,6 +1,6 @@
 {
   "name": "@danishfareed/ramadan-timings",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Minimal, zero-dependency Ramadan fasting times library — calculates true Fajr (dawn) and Maghrib (sunset) worldwide using built-in solar math.",
   "main": "dist/cjs/index.js",
   "module": "dist/esm/index.js",
