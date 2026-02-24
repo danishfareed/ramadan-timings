@@ -5,15 +5,17 @@
 [![license](https://img.shields.io/npm/l/@danishfareed/ramadan-timings.svg)](./LICENSE)
 [![zero deps](https://img.shields.io/badge/dependencies-0-brightgreen.svg)]()
 
-A **minimal, zero-dependency** library that calculates Ramadan fasting times (and core prayer times) worldwide using built-in solar math.
+A **minimal, zero-dependency** library that calculates Ramadan fasting times and **all 5 daily prayer times** (Fajr, Dhuhr, Asr, Maghrib, Isha) worldwide using built-in solar math.
 
 ## ✨ Features
 
 | Feature | Details |
 |---------|---------|
 | **Zero dependencies** | Pure TypeScript — no moment, no date-fns, no astronomy libs |
+| **All 5 prayers** | Fajr, Dhuhr, Asr (Standard / Hanafi), Maghrib, Isha |
 | **Single authentic method** | True Fajr → Sunset, per Qur'an 2:187 and authentic Sunnah |
 | **Accurate everywhere** | Built-in Meeus/NOAA solar algorithms (±1-2 min) |
+| **City search** | Resolve city names or reverse-geocode coordinates (OpenStreetMap) |
 | **Dual CJS + ESM** | Works in Node, browsers, serverless, Deno |
 | **Tiny bundle** | ~12 kB packed |
 | **High-latitude fallbacks** | `middle-of-night`, `one-seventh`, and `angle-based` modes |
@@ -62,7 +64,7 @@ Returns fasting times for a single calendar day, or `null` if times cannot be co
 
 ### `getDayPrayerTimes(date, config): PrayerTimes | null`
 
-Returns core prayer times (Fajr, Sunrise, Dhuhr, Maghrib) without fasting-specific fields like imsak or delay margins.
+Returns all 5 prayer times (Fajr, Sunrise, Dhuhr, Asr, Maghrib, Isha) for a single day. Asr defaults to the Sunni Standard (Shafi'i/Maliki/Hanbali) method; set `asrMethod: 'hanafi'` for the Hanafi school.
 
 ### `getRamadanFastingTimes(startDate, endDate, config): (FastingTimes | null)[]`
 
@@ -75,6 +77,26 @@ Converts a UTC `Date` to a local `"HH:MM"` string.
 ### `validateConfig(config): void`
 
 Throws a descriptive `RangeError` if any config value is invalid.
+
+### `formatDuration(totalMinutes): string`
+
+Formats a duration in minutes into a human-readable string like `"14h 20m"`.
+
+### `reverseGeocode(latitude, longitude): Promise<string>`
+
+Reverse-geocodes coordinates to a human-readable area name using the free OpenStreetMap Nominatim API. Returns formatted strings like `"Al Haram, Mecca, Saudi Arabia"`.
+
+### `getCityCoordinates(cityName, date?): Promise<...>`
+
+Resolves a city name to coordinates and timezone using the free Open-Meteo Geocoding API.
+
+### `getFastingTimesByCity(cityName, date?, config?): Promise<...>`
+
+Fetches coordinates for a city and returns fasting times.
+
+### `getPrayerTimesByCity(cityName, date?, config?): Promise<...>`
+
+Fetches coordinates for a city and returns prayer times.
 
 ---
 
@@ -89,6 +111,8 @@ interface RamadanCoreConfig {
   imsakMarginMinutes?: number;    // Minutes before Fajr to stop eating (default: 0)
   maghribDelayMinutes?: number;   // Minutes after sunset to break fast (default: 0)
   fajrTwilightAngle?: number;     // Fajr angle below horizon (default: 18)
+  ishaTwilightAngle?: number;     // Isha angle below horizon (default: 18)
+  asrMethod?: 'standard' | 'hanafi'; // Asr shadow method (default: 'standard')
 
   highLatitudeMode?: HighLatitudeMode; // Fallback strategy (default: 'none')
 }
@@ -119,7 +143,9 @@ interface PrayerTimes {
   fajr: Date;
   sunrise: Date;
   dhuhr: Date;
+  asr: Date;
   maghrib: Date;
+  isha: Date;
   highLatitudeFallbackApplied: boolean;
 }
 ```

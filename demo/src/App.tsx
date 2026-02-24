@@ -4,7 +4,8 @@ import {
   getDayPrayerTimes,
   getRamadanFastingTimes,
   formatLocalTime,
-  formatDuration
+  formatDuration,
+  reverseGeocode
 } from '@danishfareed/ramadan-timings';
 import type { HighLatitudeMode } from '@danishfareed/ramadan-timings';
 
@@ -22,11 +23,23 @@ function CodeSnippet({ title, code }: { title: string, code: string }) {
 
 function HeroSection() {
   const [location, setLocation] = useState<{ lat: number; lng: number; offset: number } | null>(null);
+  const [locationName, setLocationName] = useState('Mecca, Saudi Arabia');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Resolve location name via OpenStreetMap Nominatim
+  const resolveLocationName = async (lat: number, lng: number) => {
+    try {
+      const name = await reverseGeocode(lat, lng);
+      setLocationName(name);
+    } catch {
+      setLocationName(`${lat.toFixed(2)}°, ${lng.toFixed(2)}°`);
+    }
+  };
+
   useEffect(() => {
     setLocation({ lat: 21.4225, lng: 39.8262, offset: 180 });
+    resolveLocationName(21.4225, 39.8262);
   }, []);
 
   const handleGetLocation = () => {
@@ -39,11 +52,11 @@ function HeroSection() {
     }
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        setLocation({
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
-          offset: -new Date().getTimezoneOffset()
-        });
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+        const offset = -new Date().getTimezoneOffset();
+        setLocation({ lat, lng, offset });
+        resolveLocationName(lat, lng);
         setLoading(false);
       },
       (err) => {
@@ -80,7 +93,7 @@ function HeroSection() {
         </button>
         {location && (
           <div className="location-info">
-            {location.lat.toFixed(4)}°, {location.lng.toFixed(4)}° (UTC{location.offset >= 0 ? '+' : ''}{location.offset / 60})
+            🌍 {locationName}
           </div>
         )}
       </div>
@@ -212,39 +225,77 @@ function RamadanCalendarSection() {
 }
 
 function PrayerTimesSection() {
+  const [cityName, setCityName] = useState('Loading...');
+  const [loc, setLoc] = useState({ lat: 21.4225, lng: 39.8262, offset: 180 });
+
+  useEffect(() => {
+    // Use the user's own timezone to compute local prayer times
+    const offset = -new Date().getTimezoneOffset();
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        async (pos) => {
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          setLoc({ lat, lng, offset });
+          try {
+            const name = await reverseGeocode(lat, lng);
+            setCityName(name);
+          } catch {
+            setCityName(`${lat.toFixed(2)}°, ${lng.toFixed(2)}°`);
+          }
+        },
+        async () => {
+          // Fallback to Mecca
+          try {
+            const name = await reverseGeocode(21.4225, 39.8262);
+            setCityName(name);
+          } catch {
+            setCityName('Mecca, Saudi Arabia');
+          }
+        }
+      );
+    } else {
+      reverseGeocode(21.4225, 39.8262).then(setCityName).catch(() => setCityName('Mecca, Saudi Arabia'));
+    }
+  }, []);
+
   const times = getDayPrayerTimes(new Date(), {
-    latitude: 41.0082, // Istanbul
-    longitude: 28.9784,
-    timezoneOffsetMinutes: 180
+    latitude: loc.lat,
+    longitude: loc.lng,
+    timezoneOffsetMinutes: loc.offset
   });
 
   return (
     <section className="feature-section split-layout reverse">
       <div className="feature-text">
         <h2>2. Build a Core Prayer Widget</h2>
-        <p>If you don't need fasting-specific fields like `imsak` or `fastingDurationMinutes`, use <code>getDayPrayerTimes</code> for a lighter payload tailored for standard Islamic prayer apps, complete with all 5 daily prayers.</p>
-        <p className="detailText">Example: Istanbul (41.0082, 28.9784)</p>
+        <p>Use <code>getDayPrayerTimes</code> for a complete all-5-prayer widget. Pair with <code>reverseGeocode</code> to show the user's real area name, just like Google Maps.</p>
+        <p className="detailText">Live: {cityName}</p>
         <CodeSnippet
-          title="Prayer Times API"
-          code={`const prayers = getDayPrayerTimes(new Date(), {
-  latitude: 41.0082,
-  longitude: 28.9784,
-  timezoneOffsetMinutes: 180,
-  fajrTwilightAngle: 18
-});
+          title="Dynamic Prayer Widget"
+          code={`import { getDayPrayerTimes, reverseGeocode } from '@danishfareed/ramadan-timings';
 
-console.log(prayers.dhuhr);`}
+// Resolve user's area name (OpenStreetMap)
+const cityName = await reverseGeocode(lat, lng);
+// → "Al Haram, Mecca, Saudi Arabia"
+
+const prayers = getDayPrayerTimes(new Date(), {
+  latitude: lat,
+  longitude: lng,
+  timezoneOffsetMinutes: offset
+});
+console.log(prayers.asr, prayers.isha);`}
         />
       </div>
       <div className="feature-demo">
         <div className="widget-card">
-          <div className="widget-header">Istanbul Prayers Today</div>
-          <div className="widget-row"><span>Fajr</span> <b>{times ? formatLocalTime(times.fajr, 180) : '--:--'}</b></div>
-          <div className="widget-row text-muted"><span>Sunrise</span> <b>{times ? formatLocalTime(times.sunrise, 180) : '--:--'}</b></div>
-          <div className="widget-row highlight-row"><span>Dhuhr</span> <b>{times ? formatLocalTime(times.dhuhr, 180) : '--:--'}</b></div>
-          <div className="widget-row"><span>Asr</span> <b>{times ? formatLocalTime(times.asr, 180) : '--:--'}</b></div>
-          <div className="widget-row highlight-row"><span>Maghrib</span> <b>{times ? formatLocalTime(times.maghrib, 180) : '--:--'}</b></div>
-          <div className="widget-row"><span>Isha</span> <b>{times ? formatLocalTime(times.isha, 180) : '--:--'}</b></div>
+          <div className="widget-header">{cityName} — Prayers Today</div>
+          <div className="widget-row"><span>Fajr</span> <b>{times ? formatLocalTime(times.fajr, loc.offset) : '--:--'}</b></div>
+          <div className="widget-row text-muted"><span>Sunrise</span> <b>{times ? formatLocalTime(times.sunrise, loc.offset) : '--:--'}</b></div>
+          <div className="widget-row highlight-row"><span>Dhuhr</span> <b>{times ? formatLocalTime(times.dhuhr, loc.offset) : '--:--'}</b></div>
+          <div className="widget-row"><span>Asr</span> <b>{times ? formatLocalTime(times.asr, loc.offset) : '--:--'}</b></div>
+          <div className="widget-row highlight-row"><span>Maghrib</span> <b>{times ? formatLocalTime(times.maghrib, loc.offset) : '--:--'}</b></div>
+          <div className="widget-row"><span>Isha</span> <b>{times ? formatLocalTime(times.isha, loc.offset) : '--:--'}</b></div>
         </div>
       </div>
     </section>

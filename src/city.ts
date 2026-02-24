@@ -69,6 +69,53 @@ export async function getCityCoordinates(cityName: string, date: Date = new Date
 }
 
 /**
+ * Reverse-geocode coordinates to a human-readable location name.
+ * Uses the free OpenStreetMap Nominatim API (no API key required).
+ * Returns a formatted string like "Al Haram, Mecca, Saudi Arabia".
+ */
+export async function reverseGeocode(latitude: number, longitude: number): Promise<string> {
+    const url = `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&zoom=14&addressdetails=1`;
+
+    const response = await fetch(url, {
+        headers: { 'User-Agent': 'ramadan-timings-library/1.0' }
+    });
+
+    if (!response.ok) {
+        return `${latitude.toFixed(2)}°, ${longitude.toFixed(2)}°`;
+    }
+
+    const data = await response.json() as {
+        address?: {
+            suburb?: string;
+            city_district?: string;
+            city?: string;
+            town?: string;
+            village?: string;
+            county?: string;
+            state?: string;
+            country?: string;
+        };
+        display_name?: string;
+    };
+
+    if (!data.address) {
+        return `${latitude.toFixed(2)}°, ${longitude.toFixed(2)}°`;
+    }
+
+    const a = data.address;
+    const area = a.suburb || a.city_district || a.town || a.village || '';
+    const city = a.city || a.county || '';
+    const state = a.state || '';
+    const country = a.country || '';
+
+    // Build a clean, Google-Maps-style label
+    const parts = [area, city, state, country].filter(Boolean);
+    // Deduplicate adjacent identical parts (e.g. "London, London" → "London")
+    const deduped = parts.filter((p, i) => i === 0 || p !== parts[i - 1]);
+    return deduped.join(', ') || `${latitude.toFixed(2)}°, ${longitude.toFixed(2)}°`;
+}
+
+/**
  * Fetches coordinates for a city name and returns the complete fasting times for a given date.
  */
 export async function getFastingTimesByCity(
