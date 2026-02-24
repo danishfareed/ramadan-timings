@@ -3,7 +3,8 @@ import {
   getDayFastingTimes,
   getDayPrayerTimes,
   getRamadanFastingTimes,
-  formatLocalTime
+  formatLocalTime,
+  formatDuration
 } from '@danishfareed/ramadan-timings';
 import type { HighLatitudeMode } from '@danishfareed/ramadan-timings';
 
@@ -52,13 +53,16 @@ function HeroSection() {
     );
   };
 
-  const times = location ? getDayFastingTimes(new Date(), {
+  const config = location ? {
     latitude: location.lat,
     longitude: location.lng,
     timezoneOffsetMinutes: location.offset,
     imsakMarginMinutes: 10,
     fajrTwilightAngle: 18
-  }) : null;
+  } : null;
+
+  const times = config ? getDayFastingTimes(new Date(), config) : null;
+  const prayerTimes = config ? getDayPrayerTimes(new Date(), config) : null;
 
   return (
     <section className="feature-section hero-section">
@@ -104,10 +108,22 @@ function HeroSection() {
             <div className="card-title">Dhuhr</div>
             <div className="card-time">{formatLocalTime(times.solarNoon, location!.offset)}</div>
           </div>
+          <div className="card">
+            <div className="card-title">Asr</div>
+            <div className="card-time">{prayerTimes ? formatLocalTime(prayerTimes.asr, location!.offset) : '--:--'}</div>
+          </div>
           <div className="card highlight">
             <div className="card-title">Maghrib</div>
             <div className="card-time">{formatLocalTime(times.maghrib, location!.offset)}</div>
             <div className="card-sub">Break Fast</div>
+          </div>
+          <div className="card">
+            <div className="card-title">Isha</div>
+            <div className="card-time">{prayerTimes ? formatLocalTime(prayerTimes.isha, location!.offset) : '--:--'}</div>
+          </div>
+          <div className="card duration-card">
+            <div className="card-title">Fasting Duration</div>
+            <div className="card-time">{formatDuration(times.fastingDurationMinutes)}</div>
           </div>
         </div>
       ) : (
@@ -206,7 +222,7 @@ function PrayerTimesSection() {
     <section className="feature-section split-layout reverse">
       <div className="feature-text">
         <h2>2. Build a Core Prayer Widget</h2>
-        <p>If you don't need fasting-specific fields like `imsak` or `fastingDurationMinutes`, use <code>getDayPrayerTimes</code> for a lighter payload tailored for standard Islamic prayer apps.</p>
+        <p>If you don't need fasting-specific fields like `imsak` or `fastingDurationMinutes`, use <code>getDayPrayerTimes</code> for a lighter payload tailored for standard Islamic prayer apps, complete with all 5 daily prayers.</p>
         <p className="detailText">Example: Istanbul (41.0082, 28.9784)</p>
         <CodeSnippet
           title="Prayer Times API"
@@ -224,9 +240,11 @@ console.log(prayers.dhuhr);`}
         <div className="widget-card">
           <div className="widget-header">Istanbul Prayers Today</div>
           <div className="widget-row"><span>Fajr</span> <b>{times ? formatLocalTime(times.fajr, 180) : '--:--'}</b></div>
-          <div className="widget-row"><span>Sunrise</span> <b>{times ? formatLocalTime(times.sunrise, 180) : '--:--'}</b></div>
+          <div className="widget-row text-muted"><span>Sunrise</span> <b>{times ? formatLocalTime(times.sunrise, 180) : '--:--'}</b></div>
           <div className="widget-row highlight-row"><span>Dhuhr</span> <b>{times ? formatLocalTime(times.dhuhr, 180) : '--:--'}</b></div>
-          <div className="widget-row"><span>Maghrib</span> <b>{times ? formatLocalTime(times.maghrib, 180) : '--:--'}</b></div>
+          <div className="widget-row"><span>Asr</span> <b>{times ? formatLocalTime(times.asr, 180) : '--:--'}</b></div>
+          <div className="widget-row highlight-row"><span>Maghrib</span> <b>{times ? formatLocalTime(times.maghrib, 180) : '--:--'}</b></div>
+          <div className="widget-row"><span>Isha</span> <b>{times ? formatLocalTime(times.isha, 180) : '--:--'}</b></div>
         </div>
       </div>
     </section>

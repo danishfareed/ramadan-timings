@@ -12,7 +12,7 @@
     "deploy": "gh-pages -d dist"
   },
   "dependencies": {
-    "@danishfareed/ramadan-timings": "^1.0.1",
+    "@danishfareed/ramadan-timings": "file:..",
     "@types/maplibre-gl": "^1.13.2",
     "gh-pages": "^6.3.0",
     "mapbox-gl": "^3.18.1",

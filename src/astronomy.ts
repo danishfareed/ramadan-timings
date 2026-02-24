@@ -173,3 +173,43 @@ export function getMaghrib(
 ): Date | null {
     return calculateTimeForAngle(localNoonUTC, lat, lon, tzOffset, -0.833, true);
 }
+
+/**
+ * Nightfall (Isha) — sun reaches `twilightAngle` degrees below the horizon.
+ * Default angle: 18°.
+ */
+export function getIsha(
+    localNoonUTC: Date, lat: number, lon: number, tzOffset: number, twilightAngle = 18,
+): Date | null {
+    return calculateTimeForAngle(localNoonUTC, lat, lon, tzOffset, -twilightAngle, true);
+}
+
+/**
+ * Afternoon (Asr) — based on shadow length proportional to object length plus noon shadow.
+ * scale = 1 for Standard (Shafi'i, Maliki, Hanbali), scale = 2 for Hanafi.
+ */
+export function getAsr(
+    localNoonUTC: Date, lat: number, lon: number, tzOffset: number, asrMethod: 'standard' | 'hanafi' = 'standard',
+): Date | null {
+    const jd = dateToJulianDate(localNoonUTC);
+    const { declination, equationOfTime } = getSolarCoordinates(jd);
+
+    const shadowFactor = asrMethod === 'hanafi' ? 2 : 1;
+    const decRad = degToRad(declination);
+    const latRad = degToRad(lat);
+    const absLatDec = Math.abs(latRad - decRad);
+
+    // Altitude of sun at Asr matching the shadow criteria
+    // a = atan(1 / (shadowFactor + tan(|Lat - Dec|)))
+    const altitudeRad = Math.atan(1.0 / (shadowFactor + Math.tan(absLatDec)));
+    const altitudeDeg = radToDeg(altitudeRad);
+
+    const hourAngle = getHourAngle(altitudeDeg, declination, lat);
+    if (isNaN(hourAngle)) return null;
+
+    // Asr is always afternoon (sunset side)
+    const longitudeCorrection = lon * 4.0 - tzOffset;
+    const offsetMinutes = hourAngle * 4.0 - longitudeCorrection - equationOfTime;
+
+    return new Date(localNoonUTC.getTime() + offsetMinutes * 60000);
+}

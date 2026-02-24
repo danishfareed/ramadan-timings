@@ -1,4 +1,4 @@
-import { getFajr, getSunrise, getSolarNoon, getMaghrib } from './astronomy';
+import { getFajr, getSunrise, getSolarNoon, getAsr, getMaghrib, getIsha } from './astronomy';
 import { validateConfig } from './validation';
 import type { RamadanCoreConfig, FastingTimes, PrayerTimes } from './types';
 
@@ -55,11 +55,11 @@ function applyHighLatitudeFallback(
     config: RamadanCoreConfig,
     sunrise: Date | null,
     sunset: Date | null,
-): { fajr: Date; maghrib: Date } | null {
+): { fajr: Date; maghrib: Date; isha: Date } | null {
     const mode = config.highLatitudeMode ?? 'none';
     if (mode === 'none') return null;
 
-    const { latitude, longitude, timezoneOffsetMinutes: tz, fajrTwilightAngle = 18 } = config;
+    const { latitude, longitude, timezoneOffsetMinutes: tz, fajrTwilightAngle = 18, ishaTwilightAngle = 18 } = config;
     const year = date.getFullYear();
     const month = date.getMonth();
     const day = date.getDate();
@@ -76,20 +76,26 @@ function applyHighLatitudeFallback(
     if (mode === 'middle-of-night') {
         // Fajr = sunset + nightDuration / 2
         const fajr = new Date(ss.getTime() + nightDurationMs / 2);
-        return { fajr, maghrib: ss };
+        const isha = new Date(ss.getTime() + nightDurationMs / 2); // Isha & Fajr same time in middle-of-night
+        return { fajr, maghrib: ss, isha };
     }
 
     if (mode === 'one-seventh') {
         // Fajr = sunrise - (1/7 of night)
         const fajr = new Date(sr.getTime() - nightDurationMs / 7);
-        return { fajr, maghrib: ss };
+        const isha = new Date(ss.getTime() + nightDurationMs / 7);
+        return { fajr, maghrib: ss, isha };
     }
 
     if (mode === 'angle-based') {
-        // Proportion: fajrAngle / 60 of the night
-        const proportion = fajrTwilightAngle / 60;
-        const fajr = new Date(sr.getTime() - proportion * nightDurationMs);
-        return { fajr, maghrib: ss };
+        // Proportion: angle / 60 of the night
+        const fajrProportion = fajrTwilightAngle / 60;
+        const fajr = new Date(sr.getTime() - fajrProportion * nightDurationMs);
+
+        const ishaProportion = ishaTwilightAngle / 60;
+        const isha = new Date(ss.getTime() + ishaProportion * nightDurationMs);
+
+        return { fajr, maghrib: ss, isha };
     }
 
     return null;
@@ -165,7 +171,7 @@ export function getDayFastingTimes(date: Date, config: RamadanCoreConfig): Fasti
 export function getDayPrayerTimes(date: Date, config: RamadanCoreConfig): PrayerTimes | null {
     validateConfig(config);
 
-    const { latitude, longitude, timezoneOffsetMinutes: tz, fajrTwilightAngle = 18 } = config;
+    const { latitude, longitude, timezoneOffsetMinutes: tz, fajrTwilightAngle = 18, ishaTwilightAngle = 18, asrMethod = 'standard' } = config;
     const year = date.getFullYear();
     const month = date.getMonth();
     const day = date.getDate();
@@ -173,27 +179,35 @@ export function getDayPrayerTimes(date: Date, config: RamadanCoreConfig): Prayer
 
     let fajrRaw = getFajr(noonUTC, latitude, longitude, tz, fajrTwilightAngle);
     const sunriseRaw = getSunrise(noonUTC, latitude, longitude, tz);
-    const dhuhr = getSolarNoon(noonUTC, latitude, longitude, tz);
+    const dhuhrRaw = getSolarNoon(noonUTC, latitude, longitude, tz);
+    const asrRaw = getAsr(noonUTC, latitude, longitude, tz, asrMethod);
     let maghribRaw = getMaghrib(noonUTC, latitude, longitude, tz);
+    let ishaRaw = getIsha(noonUTC, latitude, longitude, tz, ishaTwilightAngle);
 
     let highLatFallback = false;
 
-    if (!fajrRaw || !maghribRaw) {
+    if (!fajrRaw || !maghribRaw || !ishaRaw) {
+        // any missing calculation triggers fallback if possible
         const fallback = applyHighLatitudeFallback(date, config, sunriseRaw, maghribRaw);
         if (!fallback) return null;
         fajrRaw = fajrRaw ?? fallback.fajr;
         maghribRaw = maghribRaw ?? fallback.maghrib;
+        ishaRaw = ishaRaw ?? fallback.isha;
         highLatFallback = true;
     }
 
     const sunrise = sunriseRaw ?? new Date(fajrRaw.getTime() + 90 * 60000);
+    // If Asr cannot be computed (e.g. extreme winter where sun never reaches required altitude), fallback to midpoint
+    const asr = asrRaw ?? new Date(dhuhrRaw.getTime() + (maghribRaw.getTime() - dhuhrRaw.getTime()) / 2);
 
     return {
         date,
         fajr: new Date(fajrRaw.getTime()),
         sunrise,
-        dhuhr,
+        dhuhr: dhuhrRaw,
+        asr,
         maghrib: new Date(maghribRaw.getTime()),
+        isha: new Date(ishaRaw!.getTime()),
         highLatitudeFallbackApplied: highLatFallback,
     };
 }

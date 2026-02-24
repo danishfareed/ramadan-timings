@@ -33,6 +33,10 @@ export interface RamadanCoreConfig {
 
     /** Degrees below the horizon that defines true Fajr. Default: 18. */
     fajrTwilightAngle?: number;
+    /** Degrees below the horizon that defines Isha. Default: 18. */
+    ishaTwilightAngle?: number;
+    /** Jurisprudential method for Asr shadow length. Default: 'standard'. */
+    asrMethod?: 'standard' | 'hanafi';
 
     // ── High-latitude handling ───────────────────────────────────────────────
 
@@ -70,8 +74,12 @@ export interface PrayerTimes {
     sunrise: Date;
     /** Solar noon / Dhuhr. */
     dhuhr: Date;
+    /** Afternoon / Asr. */
+    asr: Date;
     /** Maghrib / Sunset. */
     maghrib: Date;
+    /** Nightfall / Isha. */
+    isha: Date;
     /** Whether a high-latitude fallback was applied for this day. */
     highLatitudeFallbackApplied: boolean;
 }
