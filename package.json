@@ -45,7 +45,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/danish/ramadan-times-core"
+    "url": "https://github.com/danishfareed/ramadan-timings.git"
   },
   "devDependencies": {
     "@types/node": "^25.3.0",
