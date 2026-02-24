@@ -5,6 +5,7 @@ import type { RamadanCoreConfig, FastingTimes, PrayerTimes } from './types';
 // Re-export all public types
 export type { RamadanCoreConfig, FastingTimes, PrayerTimes, HighLatitudeMode } from './types';
 export { validateConfig } from './validation';
+export * from './city';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -30,6 +31,17 @@ export function formatLocalTime(date: Date, timezoneOffsetMinutes: number): stri
     const hh = local.getUTCHours().toString().padStart(2, '0');
     const mm = local.getUTCMinutes().toString().padStart(2, '0');
     return `${hh}:${mm}`;
+}
+
+/**
+ * Format hours and minutes duration into a readable string "Xh Ym"
+ */
+export function formatDuration(totalMinutes: number): string {
+    const min = Math.round(totalMinutes);
+    if (min <= 0) return '0h 0m';
+    const hours = Math.floor(min / 60);
+    const m = min % 60;
+    return `${hours}h ${m}m`;
 }
 
 // ── High-latitude fallbacks ──────────────────────────────────────────────────
